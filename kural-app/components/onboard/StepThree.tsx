@@ -20,11 +20,15 @@ export default function StepThree({ onNext, onBack }: Props) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [elapsed, setElapsed] = useState(0);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioBlobsRef = useRef<(Blob | null)[]>(Array(HARVARD_SENTENCES.length).fill(null));
   const audioUrlRef = useRef<string | null>(null);
   const playingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartRef = useRef<number>(0);
 
   const completedCount = recorded.filter(Boolean).length;
   const progress = (completedCount / HARVARD_SENTENCES.length) * 100;
@@ -57,6 +61,11 @@ export default function StepThree({ onNext, onBack }: Props) {
       };
 
       mediaRecorder.start();
+      setElapsed(0);
+      recordingStartRef.current = Date.now();
+      timerRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - recordingStartRef.current) / 1000));
+      }, 200);
       setState('recording');
     } catch {
       setError('Microphone access denied. Please allow microphone permissions and try again.');
@@ -64,6 +73,7 @@ export default function StepThree({ onNext, onBack }: Props) {
   };
 
   const stopRecording = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     mediaRecorderRef.current?.stop();
   };
 
@@ -192,7 +202,10 @@ export default function StepThree({ onNext, onBack }: Props) {
               className="absolute inset-0 rounded-full"
               style={{ background: 'rgba(255,59,48,0.4)', animation: 'pulse-ring 1.2s ease-out infinite' }}
             />
-            <Square size={14} fill="white" /> Stop
+            <Square size={14} fill="white" />
+            <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: '2.2ch' }}>
+              {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
+            </span>
           </motion.button>
         )}
 
