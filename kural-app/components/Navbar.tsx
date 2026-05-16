@@ -4,11 +4,26 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioWaveform } from 'lucide-react';
 import Link from 'next/link';
+import { configureAmplify } from '@/lib/amplify';
+import { getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [lastY, setLastY] = useState(0);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    configureAmplify();
+    getCurrentUser()
+      .then(() => setSignedIn(true))
+      .catch(() => setSignedIn(false));
+  }, []);
+
+  const handleSignOut = async () => {
+    await amplifySignOut();
+    setSignedIn(false);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,6 +78,40 @@ export default function Navbar() {
                 {label}
               </a>
             ))}
+            {signedIn ? (
+              <motion.button
+                onClick={handleSignOut}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-4 py-2 rounded-lg text-sm transition-colors duration-200"
+                style={{
+                  background: 'transparent',
+                  color: '#8E8E93',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+              >
+                Sign out
+              </motion.button>
+            ) : (
+              <motion.a
+                href="/auth"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-4 py-2 rounded-lg text-sm transition-colors duration-200"
+                style={{
+                  background: 'transparent',
+                  color: '#8E8E93',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+              >
+                Sign in
+              </motion.a>
+            )}
             <motion.a
               href="/onboard"
               whileHover={{ scale: 1.02 }}
