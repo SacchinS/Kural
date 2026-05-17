@@ -137,8 +137,13 @@ export default function ConversationPanel({ entries, onCaregiverSend }: Props) {
 
   const handleSend = useCallback(() => {
     clearAutoSendTimer();
-    doSend();
-  }, [clearAutoSendTimer, doSend]);
+    // prefer speech buffer; fall back to manually typed input
+    const text = (sessionFinalRef.current || input).trim();
+    if (!text) return;
+    onCaregiverSend(text);
+    sessionFinalRef.current = '';
+    setInput('');
+  }, [clearAutoSendTimer, input, onCaregiverSend]);
 
   const displayValue = input + (interim ? (input ? ' ' : '') + interim : '');
 
