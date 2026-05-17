@@ -1,14 +1,23 @@
 import { OFFLINE_FALLBACK, ERROR_FALLBACK } from './tiles';
 
 const API_URL = 'https://srcutqfjs1.execute-api.us-west-2.amazonaws.com/prod/generate';
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 20000;
+
+function timeoutSignal(ms: number): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
 
 async function post(body: object): Promise<Response> {
+  const signal = typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(TIMEOUT_MS)
+    : timeoutSignal(TIMEOUT_MS);
   return fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal,
   });
 }
 

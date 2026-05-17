@@ -28,16 +28,16 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, height: '100%', minHeight: 0 }}>
       <div
         style={{
           background: '#2C2C2E',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 12,
-          padding: '12px 16px',
-          minHeight: 52,
+          padding: '18px 22px',
+          minHeight: 72,
           color: typed ? '#FFFFFF' : '#636366',
-          fontSize: 18,
+          fontSize: 24,
           fontWeight: 500,
           letterSpacing: '0.05em',
         }}
@@ -46,7 +46,7 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
       </div>
 
       {activeGroup && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {activeGroup.split('').map((letter) => (
             <DwellButton
               key={letter}
@@ -55,10 +55,10 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
                 background: '#3A3A3C',
                 border: '1px solid rgba(255,255,255,0.12)',
                 borderRadius: 10,
-                width: 52,
-                height: 52,
+                width: 72,
+                height: 72,
                 color: '#FFFFFF',
-                fontSize: 20,
+                fontSize: 26,
                 fontWeight: 500,
                 display: 'flex',
                 alignItems: 'center',
@@ -71,7 +71,7 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, flex: 1, minHeight: 0 }}>
         {KEYBOARD_GROUPS.map((group) => (
           <Tile
             key={group}
@@ -83,7 +83,7 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         <Tile
           label="⌫ Delete"
           variant="danger"
