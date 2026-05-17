@@ -18,7 +18,7 @@ Before significant disease progression, patients record 300 Harvard Sentences â€
 - Patients record 300 Harvard Sentences on iPhone Voice Memos
 - Audio is converted to WAV (22050Hz mono) and uploaded to Amazon S3
 - XTTS v2 is fine-tuned on Amazon SageMaker (ml.g4dn.xlarge) for 10 epochs
-- The fine-tuned model is packaged and deployed as a SageMaker real-time endpoint
+- The fine-tuned model runs on a SageMaker notebook instance, exposed publicly via an ngrok static tunnel
 
 **Sentence Generation**
 - Amazon Bedrock (Claude Haiku 4.5) generates 3 contextually personalized sentence options per intent selection
