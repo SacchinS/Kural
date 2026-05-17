@@ -9,7 +9,7 @@ import Footer from '@/components/Footer';
 
 export default function Home() {
   return (
-    <main style={{ background: '#1C1C1E' }}>
+    <main style={{ background: '#1C1C1E', overflowX: 'hidden' }}>
       <Navbar />
       <Hero />
       <ProblemSection />

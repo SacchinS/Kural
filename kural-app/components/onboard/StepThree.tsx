@@ -203,7 +203,7 @@ export default function StepThree({ onNext, onBack }: Props) {
         <p className="text-center text-sm mb-4" style={{ color: '#FF453A' }}>{error}</p>
       )}
 
-      <div className="flex items-center justify-center gap-4 mb-6">
+      <div className="flex items-center justify-center gap-4 mb-6 flex-wrap">
         {state === 'idle' && (
           <motion.button
             whileHover={{ scale: 1.05 }}

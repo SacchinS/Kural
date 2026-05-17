@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AudioWaveform } from 'lucide-react';
+import { AudioWaveform, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 
+import { configureAmplify } from '@/lib/amplify';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { AACState, AACStateData, ConversationEntry } from '@/lib/aac/types';
 import { TILE_HIERARCHY, NUDGE_OPTIONS } from '@/lib/aac/tiles';
-import { generateSentences, regenerateSentences, logSelection, appendExchange } from '@/lib/aac/api';
+import { generateSentences, regenerateSentences, logSelection, appendExchange, synthesizeAsync, checkAudio } from '@/lib/aac/api';
 
 import Tile from './Tile';
+import DwellButton from './DwellButton';
 import BreadcrumbPath from './BreadcrumbPath';
 import ConversationPanel from './ConversationPanel';
 import KeyboardFallback from './KeyboardFallback';
@@ -29,7 +32,39 @@ export default function KuralAAC() {
   const [loading, setLoading] = useState(false);
   const [offline, setOffline] = useState(false);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
+  const [sessionId, setSessionId] = useState(() => `session-${Date.now()}`);
+  const [patientId, setPatientId] = useState<string>('');
+  const [patientName, setPatientName] = useState<string>('');
+  const [speaking, setSpeaking] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showConversation, setShowConversation] = useState(false);
   const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const synthesisGen = useRef(0);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  useEffect(() => {
+    configureAmplify();
+    fetchAuthSession().then(async ({ tokens }) => {
+      const idToken = tokens?.idToken;
+      if (!idToken) { setAuthLoading(false); return; }
+      const sub = (idToken.payload as Record<string, unknown>).sub as string;
+      setPatientId(sub);
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${idToken.toString()}` },
+      });
+      if (res.ok) {
+        const profile = await res.json() as { name?: string };
+        if (profile.name) setPatientName(profile.name);
+      }
+    }).catch(() => {}).finally(() => setAuthLoading(false));
+  }, []);
 
   // Always reflects latest stateData without stale closures in async callbacks
   const stateRef = useRef(stateData);
@@ -81,33 +116,69 @@ export default function KuralAAC() {
     // null or "Something else" → generate sentences; loading overlays current L2 view
     const intentPath = `${l1Key} → ${l2Key}`;
     setLoading(true);
-    const { sentences, offline: isOffline } = await generateSentences(intentPath);
+    const { sentences, offline: isOffline } = await generateSentences(intentPath, patientId, sessionId);
     setOffline(isOffline);
     setLoading(false);
     pushState({ state: 'SENTENCES', l1Key, l2Key, intentPath, sentences });
-  }, [pushState]);
+  }, [pushState, patientId, sessionId]);
 
   // ── L3 ──────────────────────────────────────────────────────────────────────
   const handleL3Select = useCallback(async (l1Key: string, l2Key: string, l3Key: string) => {
     const intentPath = `${l1Key} → ${l2Key} → ${l3Key}`;
     setLoading(true);
-    const { sentences, offline: isOffline } = await generateSentences(intentPath);
+    const { sentences, offline: isOffline } = await generateSentences(intentPath, patientId, sessionId);
     setOffline(isOffline);
     setLoading(false);
     pushState({ state: 'SENTENCES', l1Key, l2Key, l3Key: l3Key, intentPath, sentences });
-  }, [pushState]);
+  }, [pushState, patientId, sessionId]);
 
   // ── SENTENCES ────────────────────────────────────────────────────────────────
   const handleSentenceSelect = useCallback((sentence: string, index: number) => {
     const { intentPath, sentences } = stateRef.current;
-    speak(sentence);
+
+    logSelection(intentPath ?? '', sentences ?? [], index, patientId, sessionId);
+    appendExchange(sentence, patientId, sessionId);
     addEntry(sentence, 'robert');
-    logSelection(intentPath ?? '', sentences ?? [], index);
-    appendExchange(sentence);
     setHistory([]);
     setStateData({ state: 'L1' });
     resetToL1();
-  }, [addEntry, resetToL1]);
+
+    const gen = ++synthesisGen.current;
+    setSpeaking(true);
+
+    const fallbackTTS = () => {
+      if (synthesisGen.current !== gen) return;
+      setSpeaking(false);
+      speak(sentence);
+    };
+
+    const POLL_INTERVAL_MS = 2000;
+    const POLL_TIMEOUT_MS = 2 * 60 * 1000;
+    const startTime = Date.now();
+
+    synthesizeAsync(sentence, patientId).then((result) => {
+      if (synthesisGen.current !== gen) return;
+      if (!result) { fallbackTTS(); return; }
+
+      const { jobId } = result;
+      const poll = () => {
+        if (synthesisGen.current !== gen) return;
+        if (Date.now() - startTime > POLL_TIMEOUT_MS) { fallbackTTS(); return; }
+        checkAudio(jobId).then(({ status, audioUrl }) => {
+          if (synthesisGen.current !== gen) return;
+          if (status === 'complete' && audioUrl) {
+            setSpeaking(false);
+            new Audio(audioUrl).play().catch(fallbackTTS);
+          } else if (status === 'failed') {
+            fallbackTTS();
+          } else {
+            setTimeout(poll, POLL_INTERVAL_MS);
+          }
+        });
+      };
+      setTimeout(poll, POLL_INTERVAL_MS);
+    }).catch(fallbackTTS);
+  }, [addEntry, resetToL1, patientId, sessionId]);
 
   // ── NUDGE ────────────────────────────────────────────────────────────────────
   const handleNudge = useCallback(async (nudge: string) => {
@@ -121,11 +192,13 @@ export default function KuralAAC() {
       current.intentPath ?? '',
       nudge,
       current.sentences ?? [],
+      patientId,
+      sessionId,
     );
     setOffline(isOffline);
     setLoading(false);
     pushState({ ...current, state: 'SENTENCES', sentences: newSentences, previousOptions: current.sentences });
-  }, [pushState]);
+  }, [pushState, patientId, sessionId]);
 
   // ── YESNO / QUICK ────────────────────────────────────────────────────────────
   const handleInstantSpeak = useCallback((phrase: string) => {
@@ -140,16 +213,22 @@ export default function KuralAAC() {
   const handleKeyboardSpeak = useCallback((text: string) => {
     speak(text);
     addEntry(text, 'robert');
-    appendExchange(text);
+    appendExchange(text, patientId, sessionId);
     setHistory([]);
     setStateData({ state: 'L1' });
     resetToL1();
-  }, [addEntry, resetToL1]);
+  }, [addEntry, resetToL1, patientId, sessionId]);
 
   // ── Caregiver ────────────────────────────────────────────────────────────────
   const handleCaregiverSend = useCallback((text: string) => {
     addEntry(text, 'caregiver');
-  }, [addEntry]);
+    appendExchange(text, patientId, sessionId, 'caregiver');
+  }, [addEntry, patientId, sessionId]);
+
+  const clearConversation = useCallback(() => {
+    setConversation([]);
+    setSessionId(`session-${Date.now()}`);
+  }, []);
 
   // ── Render tiles ─────────────────────────────────────────────────────────────
   const { state, l1Key, l2Key, intentPath, sentences } = stateData;
@@ -160,13 +239,13 @@ export default function KuralAAC() {
   if (stateData.l3Key) breadcrumb.push(stateData.l3Key);
 
   const renderTiles = () => {
-    if (loading) return <LoadingSpinner />;
+    if (authLoading || loading) return <LoadingSpinner />;
 
     switch (state) {
       case 'L1': {
         const keys = Object.keys(TILE_HIERARCHY);
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10 }}>
             {keys.map((k) => (
               <Tile key={k} label={k} onSelect={() => handleL1Select(k)} />
             ))}
@@ -298,11 +377,53 @@ export default function KuralAAC() {
           <span style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 500 }}>Kural</span>
         </Link>
 
-        <span style={{ color: '#8E8E93', fontSize: 14 }}>Robert</span>
+        <span style={{ color: '#8E8E93', fontSize: 14 }}>{patientName || '…'}</span>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && (
+            <button
+              onClick={() => setShowConversation((v) => !v)}
+              aria-label="Toggle conversation"
+              style={{
+                background: showConversation ? 'rgba(0,201,167,0.15)' : 'rgba(255,255,255,0.06)',
+                border: `1px solid ${showConversation ? 'rgba(0,201,167,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: 8,
+                padding: '6px 8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                color: showConversation ? '#00C9A7' : '#8E8E93',
+                position: 'relative',
+              }}
+            >
+              <MessageSquare size={15} />
+              {!showConversation && conversation.length > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: -5,
+                    background: '#00C9A7',
+                    color: '#1C1C1E',
+                    borderRadius: '50%',
+                    width: 15,
+                    height: 15,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 9,
+                    fontWeight: 700,
+                  }}
+                >
+                  {conversation.length}
+                </span>
+              )}
+            </button>
+          )}
           {offline && (
-            <span style={{ color: '#FF9F0A', fontSize: 12, fontWeight: 500 }}>Offline mode</span>
+            <span style={{ color: '#FF9F0A', fontSize: 12, fontWeight: 500 }}>
+              {isMobile ? '●' : 'Offline mode'}
+            </span>
           )}
           <motion.div
             style={{ width: 8, height: 8, borderRadius: 4, background: offline ? '#FF9F0A' : '#00C9A7' }}
@@ -313,9 +434,9 @@ export default function KuralAAC() {
       </header>
 
       {/* Body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
         {/* Main tile area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px 20px', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '12px' : '16px 20px', overflow: 'hidden' }}>
           <BreadcrumbPath path={breadcrumb} />
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -332,11 +453,36 @@ export default function KuralAAC() {
             </AnimatePresence>
           </div>
 
+          {/* Speaking indicator */}
+          {speaking && (
+            <div style={{ paddingTop: 12, flexShrink: 0 }}>
+              <motion.div
+                animate={{ opacity: [1, 0.35, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  background: 'rgba(0,201,167,0.10)',
+                  border: '1px solid rgba(0,201,167,0.30)',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                  color: '#00C9A7',
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00C9A7', flexShrink: 0 }} />
+                Speaking...
+              </motion.div>
+            </div>
+          )}
+
           {/* Back button */}
           {history.length > 0 && !loading && (
             <div style={{ paddingTop: 12, flexShrink: 0 }}>
-              <button
-                onClick={goBack}
+              <DwellButton
+                onSelect={goBack}
                 style={{
                   background: 'rgba(255,69,58,0.1)',
                   border: '1px solid rgba(255,69,58,0.3)',
@@ -345,17 +491,31 @@ export default function KuralAAC() {
                   color: '#FF453A',
                   fontSize: 14,
                   fontWeight: 500,
-                  cursor: 'pointer',
+                  display: 'inline-block',
                 }}
               >
                 ← Back
-              </button>
+              </DwellButton>
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <ConversationPanel entries={conversation} onCaregiverSend={handleCaregiverSend} />
+        {/* Sidebar / bottom panel */}
+        {(!isMobile || showConversation) && (
+          <ConversationPanel
+            entries={conversation}
+            onCaregiverSend={handleCaregiverSend}
+            onClearConversation={clearConversation}
+            patientName={patientName}
+            containerStyle={isMobile ? {
+              width: '100%',
+              height: 240,
+              borderLeft: 'none',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              flexShrink: 0,
+            } : undefined}
+          />
+        )}
       </div>
     </div>
   );
