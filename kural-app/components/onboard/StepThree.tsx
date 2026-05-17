@@ -4,6 +4,8 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Square, Play, Upload, CheckCircle } from 'lucide-react';
 import { HARVARD_SENTENCES } from '@/lib/constants';
+import { configureAmplify } from '@/lib/amplify';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface Props {
   onNext: () => void;
@@ -100,12 +102,36 @@ export default function StepThree({ onNext, onBack }: Props) {
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
+    setError(null);
     setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
+    try {
+      configureAmplify();
+      const { tokens } = await fetchAuthSession();
+      const idToken = tokens?.idToken?.toString();
+      if (!idToken) throw new Error('Not authenticated. Please sign in again.');
+
+      const blobs = audioBlobsRef.current
+        .map((b, i) => ({ blob: b, idx: i }))
+        .filter((x): x is { blob: Blob; idx: number } => x.blob !== null);
+
+      for (const { blob, idx } of blobs) {
+        const formData = new FormData();
+        formData.append('file', new File([blob], `sentence-${idx + 1}.webm`, { type: 'audio/webm' }));
+        const res = await fetch('/api/voice', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${idToken}` },
+          body: formData,
+        });
+        if (!res.ok) throw new Error(`Upload failed for recording ${idx + 1}.`);
+      }
+
       setUploaded(true);
-    }, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
