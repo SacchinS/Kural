@@ -1,23 +1,23 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Brain, FlaskConical, Zap, Database, Wifi, HardDrive } from 'lucide-react';
+import { Brain, FlaskConical, Zap, Database, ShieldCheck, HardDrive } from 'lucide-react';
 
 const techCards = [
   {
     icon: <Brain size={20} />,
     name: 'Amazon Bedrock',
-    description: 'Context-aware sentence generation',
+    description: 'Context-aware sentence generation via Claude',
   },
   {
     icon: <FlaskConical size={20} />,
     name: 'Amazon SageMaker',
-    description: 'Per-patient voice model training',
+    description: 'Per-patient voice model training and synthesis',
   },
   {
     icon: <Zap size={20} />,
     name: 'AWS Lambda',
-    description: 'Real-time inference orchestration',
+    description: 'Serverless orchestration of every API action',
   },
   {
     icon: <Database size={20} />,
@@ -25,24 +25,24 @@ const techCards = [
     description: 'Patient profiles and conversation history',
   },
   {
-    icon: <Wifi size={20} />,
-    name: 'AWS IoT Greengrass',
-    description: 'Edge gaze processing',
+    icon: <ShieldCheck size={20} />,
+    name: 'Amazon Cognito',
+    description: 'Secure patient authentication and session management',
   },
   {
     icon: <HardDrive size={20} />,
     name: 'Amazon S3',
-    description: 'Secure voice sample storage',
+    description: 'Voice sample storage and synthesized audio delivery',
   },
 ];
 
 const archNodes = [
-  { label: 'Camera', sub: 'Eye tracker' },
-  { label: 'Greengrass', sub: 'Edge' },
+  { label: 'iPhone', sub: 'Eye tracking' },
+  { label: 'API Gateway', sub: 'REST API' },
   { label: 'Lambda', sub: 'Orchestrator' },
   { label: 'Bedrock', sub: 'LLM' },
   { label: 'SageMaker', sub: 'Voice model' },
-  { label: 'Speaker', sub: 'Output' },
+  { label: 'S3', sub: 'Audio output' },
 ];
 
 const containerVariants = {
@@ -83,7 +83,7 @@ export default function TechSection() {
             Powered by AWS
           </h2>
           <p style={{ color: '#8E8E93', fontSize: 17, maxWidth: 520, margin: '0 auto' }}>
-            Kural is built on a production-grade AWS architecture — scalable, secure, and clinically ready.
+            Kural runs on a fully serverless AWS stack — eye input on iPhone feeds directly into API Gateway, Lambda, and Bedrock with no edge hardware required.
           </p>
         </motion.div>
 
@@ -132,41 +132,42 @@ export default function TechSection() {
           transition={{ duration: 0.6, ease: 'easeOut' as const }}
         >
           <p
-            className="text-center text-xs tracking-widest uppercase mb-6"
+            className="text-center text-xs tracking-widest uppercase mb-8"
             style={{ color: '#636366' }}
           >
             Architecture overview
           </p>
-          <div className="flex items-center justify-center flex-wrap gap-0 overflow-x-auto">
+          <div className="flex items-center justify-center flex-wrap gap-y-6 gap-x-0">
             {archNodes.map((node, i) => (
               <div key={i} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
-                    className="rounded-xl px-4 py-3 text-center"
+                    className="rounded-2xl text-center"
                     style={{
                       background: '#1C1C1E',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      minWidth: 88,
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      minWidth: 120,
+                      padding: '16px 20px',
                     }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF' }}>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF' }}>
                       {node.label}
                     </div>
-                    <div style={{ fontSize: 11, color: '#636366', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: '#636366', marginTop: 3 }}>
                       {node.sub}
                     </div>
                   </div>
                 </div>
                 {i < archNodes.length - 1 && (
-                  <div className="flex items-center mx-1">
-                    <div style={{ width: 24, height: 1.5, background: 'rgba(0,201,167,0.5)' }} />
+                  <div className="flex items-center mx-2">
+                    <div style={{ width: 32, height: 2, background: 'rgba(0,201,167,0.5)' }} />
                     <div
                       style={{
                         width: 0,
                         height: 0,
-                        borderTop: '5px solid transparent',
-                        borderBottom: '5px solid transparent',
-                        borderLeft: '7px solid rgba(0,201,167,0.5)',
+                        borderTop: '6px solid transparent',
+                        borderBottom: '6px solid transparent',
+                        borderLeft: '8px solid rgba(0,201,167,0.5)',
                       }}
                     />
                   </div>

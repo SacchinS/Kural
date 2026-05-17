@@ -36,6 +36,7 @@ export default function Tile({ label, variant = 'default', disabled = false, onS
       if (p < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
+        rafRef.current = 0;
         setProgress(0);
         onSelect();
       }
@@ -85,7 +86,7 @@ export default function Tile({ label, variant = 'default', disabled = false, onS
       whileHover={disabled ? {} : { scale: 1.01 }}
       onMouseEnter={startDwell}
       onMouseLeave={stopDwell}
-      onClick={disabled ? undefined : onSelect}
+      onClick={disabled ? undefined : () => { stopDwell(); onSelect(); }}
     >
       <span style={{ color: textColor, fontSize, fontWeight: 500, lineHeight: 1.4, flex: 1 }}>
         {label}
