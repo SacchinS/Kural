@@ -154,7 +154,8 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
   return (
     <div
       style={{
-        width: 280,
+        width: 420,
+        maxWidth: '42vw',
         flexShrink: 0,
         borderLeft: '1px solid rgba(255,255,255,0.08)',
         display: 'flex',
@@ -165,14 +166,14 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
     >
       <div
         style={{
-          padding: '12px 16px',
+          padding: '16px 18px',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
-        <span style={{ color: '#8E8E93', fontSize: 12, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        <span style={{ color: '#8E8E93', fontSize: 16, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           Conversation
         </span>
         {entries.length > 0 && (
@@ -181,11 +182,16 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
             style={{
               background: 'transparent',
               border: '1px solid rgba(255,69,58,0.3)',
-              borderRadius: 6,
-              padding: '3px 8px',
+              borderRadius: 10,
+              padding: '14px 18px',
               color: '#FF453A',
-              fontSize: 11,
+              fontSize: 17,
               fontWeight: 500,
+              minHeight: 56,
+              minWidth: 96,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             Clear
@@ -195,10 +201,10 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
 
       <div
         ref={scrollRef}
-        style={{ flex: 1, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}
+        style={{ flex: 1, overflowY: 'auto', padding: '18px 14px', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}
       >
         {entries.length === 0 && (
-          <p style={{ color: '#636366', fontSize: 13, textAlign: 'center', marginTop: 24 }}>
+          <p style={{ color: '#636366', fontSize: 18, textAlign: 'center', marginTop: 32, lineHeight: 1.4 }}>
             Conversation will appear here
           </p>
         )}
@@ -207,29 +213,29 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
             key={entry.id}
             style={{
               borderLeft: `3px solid ${entry.speaker === 'robert' ? '#00C9A7' : 'rgba(255,255,255,0.2)'}`,
-              paddingLeft: 10,
-              paddingTop: 4,
-              paddingBottom: 4,
+              paddingLeft: 14,
+              paddingTop: 8,
+              paddingBottom: 8,
             }}
           >
-            <div style={{ color: entry.speaker === 'robert' ? '#00C9A7' : '#8E8E93', fontSize: 11, fontWeight: 500, marginBottom: 2 }}>
+            <div style={{ color: entry.speaker === 'robert' ? '#00C9A7' : '#8E8E93', fontSize: 15, fontWeight: 500, marginBottom: 5 }}>
               {entry.speaker === 'robert' ? (patientName || 'Patient') : 'Caregiver'}
             </div>
-            <div style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 1.4 }}>{entry.text}</div>
+            <div style={{ color: '#FFFFFF', fontSize: 20, lineHeight: 1.45 }}>{entry.text}</div>
           </div>
         ))}
       </div>
 
       <div
         style={{
-          padding: '10px 8px',
+          padding: '16px 14px 18px',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 6,
+          gap: 10,
         }}
       >
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <input
             value={displayValue}
             onChange={(e) => {
@@ -241,12 +247,14 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
               flex: 1,
               background: listening ? 'rgba(255,69,58,0.08)' : '#2C2C2E',
               border: `1px solid ${listening ? 'rgba(255,69,58,0.4)' : 'rgba(255,255,255,0.08)'}`,
-              borderRadius: 8,
-              padding: '8px 10px',
+              borderRadius: 10,
+              padding: '16px 14px',
               color: interim ? '#8E8E93' : '#FFFFFF',
-              fontSize: 13,
+              fontSize: 18,
               outline: 'none',
               transition: 'background 0.2s, border-color 0.2s',
+              minHeight: 64,
+              minWidth: 0,
             }}
           />
           {speechSupported && (
@@ -255,33 +263,40 @@ export default function ConversationPanel({ entries, onCaregiverSend, onClearCon
               style={{
                 background: listening ? 'rgba(255,69,58,0.15)' : 'rgba(255,255,255,0.06)',
                 border: `1px solid ${listening ? 'rgba(255,69,58,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 8,
-                padding: '0 10px',
+                borderRadius: 10,
+                padding: 0,
                 color: listening ? '#FF453A' : '#8E8E93',
                 display: 'flex',
                 alignItems: 'center',
-                minHeight: 36,
+                justifyContent: 'center',
+                minHeight: 64,
+                minWidth: 64,
               }}
             >
-              {listening ? <MicOff size={15} /> : <Mic size={15} />}
+              {listening ? <MicOff size={28} /> : <Mic size={28} />}
             </DwellButton>
           )}
           <DwellButton
             onSelect={handleSend}
             style={{
               background: '#00C9A7',
-              borderRadius: 8,
-              padding: '8px 12px',
+              borderRadius: 10,
+              padding: '16px 20px',
               color: '#000',
-              fontSize: 13,
+              fontSize: 18,
               fontWeight: 500,
+              minHeight: 64,
+              minWidth: 92,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             Send
           </DwellButton>
         </div>
         {listening && (
-          <p style={{ fontSize: 11, color: '#FF453A', margin: 0, paddingLeft: 2 }}>
+          <p style={{ fontSize: 15, color: '#FF453A', margin: 0, paddingLeft: 2, lineHeight: 1.3 }}>
             Listening — will send automatically after a pause
           </p>
         )}

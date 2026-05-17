@@ -41,6 +41,13 @@ export default function KuralAAC() {
   const [showConversation, setShowConversation] = useState(false);
   const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const synthesisGen = useRef(0);
+  const tileGap = isMobile ? 12 : 16;
+  const tileGridStyle = {
+    display: 'grid',
+    gap: tileGap,
+    height: '100%',
+    minHeight: 0,
+  };
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -250,7 +257,13 @@ export default function KuralAAC() {
       case 'L1': {
         const keys = Object.keys(TILE_HIERARCHY);
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              ...tileGridStyle,
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+              gridAutoRows: 'minmax(120px, 1fr)',
+            }}
+          >
             {keys.map((k) => (
               <Tile key={k} label={k} onSelect={() => handleL1Select(k)} />
             ))}
@@ -262,7 +275,13 @@ export default function KuralAAC() {
         if (!l1Key) return null;
         const l2 = TILE_HIERARCHY[l1Key] as Record<string, string[] | null>;
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              ...tileGridStyle,
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridAutoRows: 'minmax(132px, 1fr)',
+            }}
+          >
             {Object.keys(l2).map((k) => (
               <Tile key={k} label={k} onSelect={() => handleL2Select(l1Key, k)} />
             ))}
@@ -274,7 +293,13 @@ export default function KuralAAC() {
         if (!l1Key || !l2Key) return null;
         const l3Items = (TILE_HIERARCHY[l1Key] as Record<string, string[] | null>)[l2Key] as string[];
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              ...tileGridStyle,
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridAutoRows: 'minmax(132px, 1fr)',
+            }}
+          >
             {l3Items.map((k) => (
               <Tile key={k} label={k} onSelect={() => handleL3Select(l1Key, l2Key, k)} />
             ))}
@@ -284,22 +309,36 @@ export default function KuralAAC() {
 
       case 'SENTENCES':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: tileGap, height: '100%', minHeight: 0 }}>
             {(sentences ?? []).map((s, i) => (
-              <Tile key={i} label={s} variant="sentence" fullWidth onSelect={() => handleSentenceSelect(s, i)} />
+              <Tile
+                key={i}
+                label={s}
+                variant="sentence"
+                fullWidth
+                onSelect={() => handleSentenceSelect(s, i)}
+                style={{ flex: 1 }}
+              />
             ))}
             <Tile
               label="None of these"
               variant="danger"
               fullWidth
               onSelect={() => pushState({ ...stateData, state: 'NUDGE' })}
+              style={{ flex: 0.85 }}
             />
           </div>
         );
 
       case 'NUDGE':
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              ...tileGridStyle,
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridAutoRows: 'minmax(132px, 1fr)',
+            }}
+          >
             {NUDGE_OPTIONS.map((n) => (
               <Tile key={n} label={n} onSelect={() => handleNudge(n)} />
             ))}
@@ -312,7 +351,13 @@ export default function KuralAAC() {
       case 'YESNO': {
         const options = Object.keys(TILE_HIERARCHY['Yes / No'] as Record<string, null>);
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              ...tileGridStyle,
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridAutoRows: 'minmax(180px, 1fr)',
+            }}
+          >
             {options.map((o) => (
               <Tile key={o} label={o} onSelect={() => handleInstantSpeak(o)} />
             ))}
@@ -324,7 +369,13 @@ export default function KuralAAC() {
         const quickData = TILE_HIERARCHY['Quick phrase'] as Record<string, string[] | null>;
         if (!l2Key) {
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            <div
+              style={{
+                ...tileGridStyle,
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gridAutoRows: 'minmax(132px, 1fr)',
+              }}
+            >
               {Object.keys(quickData).map((k) => (
                 <Tile
                   key={k}
@@ -340,7 +391,13 @@ export default function KuralAAC() {
         }
         const phrases = quickData[l2Key] as string[];
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              ...tileGridStyle,
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridAutoRows: 'minmax(132px, 1fr)',
+            }}
+          >
             {phrases.map((p) => (
               <Tile key={p} label={p} onSelect={() => handleInstantSpeak(p)} />
             ))}
@@ -439,12 +496,12 @@ export default function KuralAAC() {
       </header>
 
       {/* Body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
         {/* Main tile area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '12px' : '16px 20px', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '12px' : '18px 22px', overflow: 'hidden', minHeight: 0 }}>
           <BreadcrumbPath path={breadcrumb} />
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${state}-${l1Key ?? ''}-${l2Key ?? ''}-${stateData.l3Key ?? ''}`}
@@ -452,6 +509,7 @@ export default function KuralAAC() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18, ease: 'easeOut' as const }}
+                style={{ height: '100%', minHeight: 0 }}
               >
                 {renderTiles()}
               </motion.div>
@@ -492,11 +550,15 @@ export default function KuralAAC() {
                   background: 'rgba(255,69,58,0.1)',
                   border: '1px solid rgba(255,69,58,0.3)',
                   borderRadius: 12,
-                  padding: '12px 24px',
+                  padding: '20px 32px',
                   color: '#FF453A',
-                  fontSize: 14,
+                  fontSize: 22,
                   fontWeight: 500,
-                  display: 'inline-block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 72,
+                  minWidth: 180,
                 }}
               >
                 ← Back
@@ -514,7 +576,8 @@ export default function KuralAAC() {
             patientName={patientName}
             containerStyle={isMobile ? {
               width: '100%',
-              height: 240,
+              maxWidth: 'none',
+              height: '42dvh',
               borderLeft: 'none',
               borderTop: '1px solid rgba(255,255,255,0.08)',
               flexShrink: 0,
