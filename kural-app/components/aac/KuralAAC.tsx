@@ -18,14 +18,6 @@ import ConversationPanel from './ConversationPanel';
 import KeyboardFallback from './KeyboardFallback';
 import LoadingSpinner from './LoadingSpinner';
 
-function speak(text: string) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.rate = 0.92;
-  window.speechSynthesis.speak(utt);
-}
-
 export default function KuralAAC() {
   const [stateData, setStateData] = useState<AACStateData>({ state: 'L1' });
   const [history, setHistory] = useState<AACStateData[]>([]);
@@ -36,11 +28,14 @@ export default function KuralAAC() {
   const [patientId, setPatientId] = useState<string>('');
   const [patientName, setPatientName] = useState<string>('');
   const [speaking, setSpeaking] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState('');
+  const [blockedAudioUrl, setBlockedAudioUrl] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [showConversation, setShowConversation] = useState(false);
   const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const synthesisGen = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const tileGap = isMobile ? 12 : 16;
   const tileGridStyle = {
     display: 'grid',
@@ -106,6 +101,14 @@ export default function KuralAAC() {
     ]);
   }, []);
 
+  const playAudioUrl = useCallback(async (audioUrl: string) => {
+    const audio = audioRef.current ?? new Audio();
+    audioRef.current = audio;
+    audio.src = audioUrl;
+    audio.currentTime = 0;
+    await audio.play();
+  }, []);
+
   // ── L1 ──────────────────────────────────────────────────────────────────────
   const handleL1Select = useCallback((key: string) => {
     if (key === 'Yes / No') { pushState({ state: 'YESNO', l1Key: key }); return; }
@@ -143,12 +146,19 @@ export default function KuralAAC() {
   const speakWithSynthesis = useCallback((text: string) => {
     const gen = ++synthesisGen.current;
     setSpeaking(true);
+    setVoiceMessage('Preparing voice...');
+    setBlockedAudioUrl('');
 
-    const fallbackTTS = () => {
+    const failVoice = (message: string) => {
       if (synthesisGen.current !== gen) return;
       setSpeaking(false);
-      speak(text);
+      setVoiceMessage(message);
     };
+
+    if (!patientId) {
+      failVoice('Voice unavailable: sign in is still loading.');
+      return;
+    }
 
     const POLL_INTERVAL_MS = 2000;
     const POLL_TIMEOUT_MS = 2 * 60 * 1000;
@@ -156,27 +166,48 @@ export default function KuralAAC() {
 
     synthesizeAsync(text, patientId).then((result) => {
       if (synthesisGen.current !== gen) return;
-      if (!result) { fallbackTTS(); return; }
+      if (!result) {
+        failVoice('Voice model unavailable. Please try again.');
+        return;
+      }
 
       const { jobId } = result;
       const poll = () => {
         if (synthesisGen.current !== gen) return;
-        if (Date.now() - startTime > POLL_TIMEOUT_MS) { fallbackTTS(); return; }
+        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+          failVoice('Voice took too long. Please try again.');
+          return;
+        }
         checkAudio(jobId).then(({ status, audioUrl }) => {
           if (synthesisGen.current !== gen) return;
           if (status === 'complete' && audioUrl) {
-            setSpeaking(false);
-            new Audio(audioUrl).play().catch(fallbackTTS);
+            setVoiceMessage('Playing voice...');
+            playAudioUrl(audioUrl)
+              .then(() => {
+                if (synthesisGen.current !== gen) return;
+                setSpeaking(false);
+                setVoiceMessage('');
+              })
+              .catch((err) => {
+                console.error('[aac/audio] playback blocked or failed:', err);
+                if (synthesisGen.current !== gen) return;
+                setSpeaking(false);
+                setBlockedAudioUrl(audioUrl);
+                setVoiceMessage('iPad blocked autoplay. Select Play voice.');
+              });
           } else if (status === 'failed') {
-            fallbackTTS();
+            failVoice('Voice model failed. Please try again.');
           } else {
             setTimeout(poll, POLL_INTERVAL_MS);
           }
         });
       };
       setTimeout(poll, POLL_INTERVAL_MS);
-    }).catch(fallbackTTS);
-  }, [patientId]);
+    }).catch((err) => {
+      console.error('[aac/synthesis] failed:', err);
+      failVoice('Voice model unavailable. Please try again.');
+    });
+  }, [patientId, playAudioUrl]);
 
   // ── SENTENCES ────────────────────────────────────────────────────────────────
   const handleSentenceSelect = useCallback((sentence: string, index: number) => {
@@ -214,12 +245,12 @@ export default function KuralAAC() {
 
   // ── YESNO / QUICK ────────────────────────────────────────────────────────────
   const handleInstantSpeak = useCallback((phrase: string) => {
-    speak(phrase);
     addEntry(phrase, 'robert');
     setHistory([]);
     setStateData({ state: 'L1' });
     resetToL1();
-  }, [addEntry, resetToL1]);
+    speakWithSynthesis(phrase);
+  }, [addEntry, resetToL1, speakWithSynthesis]);
 
   // ── KEYBOARD ─────────────────────────────────────────────────────────────────
   const handleKeyboardSpeak = useCallback((text: string) => {
@@ -230,6 +261,20 @@ export default function KuralAAC() {
     resetToL1();
     speakWithSynthesis(text);
   }, [addEntry, resetToL1, patientId, sessionId, speakWithSynthesis]);
+
+  const handleBlockedAudioPlay = useCallback(() => {
+    if (!blockedAudioUrl) return;
+    setVoiceMessage('Playing voice...');
+    playAudioUrl(blockedAudioUrl)
+      .then(() => {
+        setBlockedAudioUrl('');
+        setVoiceMessage('');
+      })
+      .catch((err) => {
+        console.error('[aac/audio] manual playback failed:', err);
+        setVoiceMessage('Could not play voice audio.');
+      });
+  }, [blockedAudioUrl, playAudioUrl]);
 
   // ── Caregiver ────────────────────────────────────────────────────────────────
   const handleCaregiverSend = useCallback((text: string) => {
@@ -421,6 +466,7 @@ export default function KuralAAC() {
         overflow: 'hidden',
       }}
     >
+      <audio ref={audioRef} preload="auto" />
       {/* Header */}
       <header
         style={{
@@ -516,27 +562,47 @@ export default function KuralAAC() {
             </AnimatePresence>
           </div>
 
-          {/* Speaking indicator */}
-          {speaking && (
+          {/* Voice status */}
+          {(speaking || voiceMessage || blockedAudioUrl) && (
             <div style={{ paddingTop: 12, flexShrink: 0 }}>
               <motion.div
-                animate={{ opacity: [1, 0.35, 1] }}
+                animate={speaking ? { opacity: [1, 0.35, 1] } : {}}
                 transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 7,
+                  gap: 12,
                   background: 'rgba(0,201,167,0.10)',
                   border: '1px solid rgba(0,201,167,0.30)',
-                  borderRadius: 20,
-                  padding: '6px 14px',
+                  borderRadius: 18,
+                  padding: '10px 14px',
                   color: '#00C9A7',
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: 500,
                 }}
               >
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00C9A7', flexShrink: 0 }} />
-                Speaking...
+                {voiceMessage || 'Preparing voice...'}
+                {blockedAudioUrl && (
+                  <DwellButton
+                    onSelect={handleBlockedAudioPlay}
+                    style={{
+                      background: '#00C9A7',
+                      borderRadius: 10,
+                      color: '#000',
+                      minHeight: 52,
+                      minWidth: 132,
+                      padding: '12px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 17,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Play voice
+                  </DwellButton>
+                )}
               </motion.div>
             </div>
           )}

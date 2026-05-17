@@ -117,9 +117,18 @@ export async function synthesizeAsync(text: string, patientId: string): Promise<
   try {
     const res = await post({ action: 'synthesize_async', patient_id: patientId, text });
     const data = await res.json();
-    const body = JSON.parse(data.body);
+    if (!res.ok || data.errorMessage || data.errorType) {
+      console.error('[aac/synthesize] Lambda error:', res.status, data.errorType, data.errorMessage);
+      return null;
+    }
+    const body = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+    if (!body?.job_id) {
+      console.error('[aac/synthesize] Missing job_id:', data);
+      return null;
+    }
     return { jobId: body.job_id };
-  } catch {
+  } catch (err) {
+    console.error('[aac/synthesize] fetch/parse error:', err);
     return null;
   }
 }
@@ -128,9 +137,18 @@ export async function checkAudio(jobId: string): Promise<{ status: string; audio
   try {
     const res = await post({ action: 'check_audio', job_id: jobId });
     const data = await res.json();
-    const body = JSON.parse(data.body);
+    if (!res.ok || data.errorMessage || data.errorType) {
+      console.error('[aac/check_audio] Lambda error:', res.status, data.errorType, data.errorMessage);
+      return { status: 'failed' };
+    }
+    const body = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+    if (!body?.status) {
+      console.error('[aac/check_audio] Missing status:', data);
+      return { status: 'failed' };
+    }
     return { status: body.status, audioUrl: body.audio_url };
-  } catch {
+  } catch (err) {
+    console.error('[aac/check_audio] fetch/parse error:', err);
     return { status: 'failed' };
   }
 }

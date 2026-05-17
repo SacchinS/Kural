@@ -37,7 +37,7 @@ export default function MissionSection() {
             className="mb-10 leading-tight"
             style={{ fontSize: 'clamp(24px, 3.5vw, 40px)', fontWeight: 500, color: '#FFFFFF' }}
           >
-            2 million people in the US live with ALS. Most will lose their voice. Almost none have a tool that preserves it.
+            35,000 people in the US live with ALS. Most will lose their voice. Almost none have a tool that preserves it.
           </motion.p>
 
           <motion.div
