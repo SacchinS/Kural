@@ -132,31 +132,22 @@ export default function KuralAAC() {
     pushState({ state: 'SENTENCES', l1Key, l2Key, l3Key: l3Key, intentPath, sentences });
   }, [pushState, patientId, sessionId]);
 
-  // ── SENTENCES ────────────────────────────────────────────────────────────────
-  const handleSentenceSelect = useCallback((sentence: string, index: number) => {
-    const { intentPath, sentences } = stateRef.current;
-
-    logSelection(intentPath ?? '', sentences ?? [], index, patientId, sessionId);
-    appendExchange(sentence, patientId, sessionId);
-    addEntry(sentence, 'robert');
-    setHistory([]);
-    setStateData({ state: 'L1' });
-    resetToL1();
-
+  // ── Shared synthesis pipeline ────────────────────────────────────────────────
+  const speakWithSynthesis = useCallback((text: string) => {
     const gen = ++synthesisGen.current;
     setSpeaking(true);
 
     const fallbackTTS = () => {
       if (synthesisGen.current !== gen) return;
       setSpeaking(false);
-      speak(sentence);
+      speak(text);
     };
 
     const POLL_INTERVAL_MS = 2000;
     const POLL_TIMEOUT_MS = 2 * 60 * 1000;
     const startTime = Date.now();
 
-    synthesizeAsync(sentence, patientId).then((result) => {
+    synthesizeAsync(text, patientId).then((result) => {
       if (synthesisGen.current !== gen) return;
       if (!result) { fallbackTTS(); return; }
 
@@ -178,7 +169,21 @@ export default function KuralAAC() {
       };
       setTimeout(poll, POLL_INTERVAL_MS);
     }).catch(fallbackTTS);
-  }, [addEntry, resetToL1, patientId, sessionId]);
+  }, [patientId]);
+
+  // ── SENTENCES ────────────────────────────────────────────────────────────────
+  const handleSentenceSelect = useCallback((sentence: string, index: number) => {
+    const { intentPath, sentences } = stateRef.current;
+
+    logSelection(intentPath ?? '', sentences ?? [], index, patientId, sessionId);
+    appendExchange(sentence, patientId, sessionId);
+    addEntry(sentence, 'robert');
+    setHistory([]);
+    setStateData({ state: 'L1' });
+    resetToL1();
+
+    speakWithSynthesis(sentence);
+  }, [addEntry, resetToL1, patientId, sessionId, speakWithSynthesis]);
 
   // ── NUDGE ────────────────────────────────────────────────────────────────────
   const handleNudge = useCallback(async (nudge: string) => {
@@ -211,13 +216,13 @@ export default function KuralAAC() {
 
   // ── KEYBOARD ─────────────────────────────────────────────────────────────────
   const handleKeyboardSpeak = useCallback((text: string) => {
-    speak(text);
     addEntry(text, 'robert');
     appendExchange(text, patientId, sessionId);
     setHistory([]);
     setStateData({ state: 'L1' });
     resetToL1();
-  }, [addEntry, resetToL1, patientId, sessionId]);
+    speakWithSynthesis(text);
+  }, [addEntry, resetToL1, patientId, sessionId, speakWithSynthesis]);
 
   // ── Caregiver ────────────────────────────────────────────────────────────────
   const handleCaregiverSend = useCallback((text: string) => {
