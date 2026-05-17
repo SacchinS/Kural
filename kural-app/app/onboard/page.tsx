@@ -10,6 +10,15 @@ import StepTwo from '@/components/onboard/StepTwo';
 import StepThree from '@/components/onboard/StepThree';
 import StepFour from '@/components/onboard/StepFour';
 import StepFive from '@/components/onboard/StepFive';
+import { configureAmplify } from '@/lib/amplify';
+import { fetchAuthSession } from 'aws-amplify/auth';
+
+interface StepOneData {
+  fullName: string;
+  email: string;
+  password: string;
+  role: string;
+}
 
 const pageVariants = {
   initial: { opacity: 0, x: 24 },
@@ -19,9 +28,50 @@ const pageVariants = {
 
 export default function OnboardPage() {
   const [step, setStep] = useState(1);
+  const [stepOneData, setStepOneData] = useState<StepOneData | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  const next = () => setStep((s) => Math.min(s + 1, 5));
   const back = () => setStep((s) => Math.max(s - 1, 1));
+  const next = () => setStep((s) => Math.min(s + 1, 5));
+
+  const handleStepOneNext = (data: StepOneData) => {
+    setStepOneData(data);
+    setStep(2);
+  };
+
+  const handleStepTwoNext = async (data: Record<string, unknown>) => {
+    setSaveError('');
+    setSaving(true);
+    try {
+      configureAmplify();
+      const { tokens } = await fetchAuthSession();
+      const idToken = tokens?.idToken?.toString();
+      if (!idToken) throw new Error('Not authenticated. Please sign in again.');
+      const profile = {
+        name: stepOneData?.fullName,
+        email: stepOneData?.email,
+        role: stepOneData?.role,
+        ...data,
+        onboarding_started_at: new Date().toISOString(),
+      };
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify(profile),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        console.error('[onboard] PUT /api/profile failed', res.status, body);
+        throw new Error(body.error ?? 'Failed to save profile. Please try again.');
+      }
+      setStep(3);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div
@@ -54,8 +104,15 @@ export default function OnboardPage() {
               exit="exit"
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              {step === 1 && <StepOne onNext={next} />}
-              {step === 2 && <StepTwo onNext={next} onBack={back} />}
+              {step === 1 && <StepOne onNext={handleStepOneNext} />}
+              {step === 2 && (
+                <StepTwo
+                  onNext={handleStepTwoNext}
+                  onBack={back}
+                  saving={saving}
+                  saveError={saveError}
+                />
+              )}
               {step === 3 && <StepThree onNext={next} onBack={back} />}
               {step === 4 && <StepFour onNext={next} onBack={back} />}
               {step === 5 && <StepFive />}
