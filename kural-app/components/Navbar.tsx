@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AudioWaveform } from 'lucide-react';
 import Link from 'next/link';
 import { configureAmplify } from '@/lib/amplify';
-import { getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -14,13 +14,21 @@ export default function Navbar() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    console.log('Navbar auth check started');
     configureAmplify();
-    getCurrentUser()
-      .then(() => setSignedIn(true))
-      .catch(() => setSignedIn(false));
+    fetchAuthSession()
+      .then(({ tokens }) => {
+        console.log('Navbar tokens found', Boolean(tokens?.idToken));
+        setSignedIn(!!tokens?.idToken);
+      })
+      .catch((err) => {
+        console.log('Navbar auth check error', err);
+        setSignedIn(false);
+      });
   }, []);
 
   const handleSignOut = async () => {
+    configureAmplify();
     await amplifySignOut();
     setSignedIn(false);
   };

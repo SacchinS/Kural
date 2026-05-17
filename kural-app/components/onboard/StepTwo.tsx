@@ -8,6 +8,8 @@ import { DAILY_TOPICS } from '@/lib/constants';
 interface Props {
   onNext: (data: Record<string, unknown>) => void;
   onBack: () => void;
+  saving?: boolean;
+  saveError?: string;
 }
 
 const inputStyle = {
@@ -22,7 +24,7 @@ const fadeUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } },
 };
 
-export default function StepTwo({ onNext, onBack }: Props) {
+export default function StepTwo({ onNext, onBack, saving = false, saveError = '' }: Props) {
   const [patientName, setPatientName] = useState('');
   const [diagnosisDate, setDiagnosisDate] = useState('');
   const [style, setStyle] = useState('warm');
@@ -178,27 +180,44 @@ export default function StepTwo({ onNext, onBack }: Props) {
           </div>
         </motion.div>
 
+        {saveError && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 py-3 rounded-xl text-sm"
+            style={{
+              background: 'rgba(255,69,58,0.12)',
+              border: '1px solid rgba(255,69,58,0.25)',
+              color: '#FF453A',
+            }}
+          >
+            {saveError}
+          </motion.div>
+        )}
+
         <motion.div variants={fadeUp} className="flex gap-3 pt-2">
           <button
             onClick={onBack}
+            disabled={saving}
             className="px-5 py-3 rounded-xl text-sm transition-colors"
             style={{ background: 'rgba(255,255,255,0.06)', color: '#8E8E93' }}
           >
             ← Back
           </button>
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => valid && onNext({ patientName, diagnosisDate, style, language, familyMembers, topics })}
+            whileHover={{ scale: saving || !valid ? 1 : 1.02 }}
+            whileTap={{ scale: saving || !valid ? 1 : 0.98 }}
+            onClick={() => !saving && valid && onNext({ patientName, diagnosisDate, style, language, familyMembers, topics })}
+            disabled={saving || !valid}
             className="flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-200"
             style={{
-              background: valid ? '#00C9A7' : 'rgba(255,255,255,0.06)',
-              color: valid ? '#1C1C1E' : '#636366',
-              cursor: valid ? 'pointer' : 'not-allowed',
+              background: saving || !valid ? 'rgba(255,255,255,0.06)' : '#00C9A7',
+              color: saving || !valid ? '#636366' : '#1C1C1E',
+              cursor: saving || !valid ? 'not-allowed' : 'pointer',
               fontWeight: 500,
             }}
           >
-            Continue →
+            {saving ? 'Saving…' : 'Continue →'}
           </motion.button>
         </motion.div>
       </div>

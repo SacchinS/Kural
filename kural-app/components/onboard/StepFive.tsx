@@ -83,7 +83,7 @@ export default function StepFive() {
           <Download size={15} /> Download Kural companion app
         </motion.a>
         <motion.a
-          href="/"
+          href="/aac"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-medium"
@@ -93,7 +93,7 @@ export default function StepFive() {
             border: '1px solid rgba(0,201,167,0.4)',
           }}
         >
-          <LayoutDashboard size={15} /> View caregiver dashboard
+          <LayoutDashboard size={15} /> Go to Voice Console
         </motion.a>
       </motion.div>
 
