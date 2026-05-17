@@ -38,7 +38,7 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="relative py-28 px-6"
+      className="relative py-28 px-6 overflow-hidden"
       style={{ background: '#1C1C1E' }}
     >
       <div className="orb" style={{ width: 500, height: 500, top: 100, left: -100 }} />

@@ -1,8 +1,6 @@
 import { OFFLINE_FALLBACK, ERROR_FALLBACK } from './tiles';
 
 const API_URL = 'https://srcutqfjs1.execute-api.us-west-2.amazonaws.com/prod/generate';
-const PATIENT_ID = 'patient_001';
-const SESSION_ID = 'demo-session-001';
 const TIMEOUT_MS = 8000;
 
 async function post(body: object): Promise<Response> {
@@ -21,13 +19,18 @@ function getOfflineFallback(intentPath: string): string[] {
   return ERROR_FALLBACK;
 }
 
-export async function generateSentences(intentPath: string): Promise<{ sentences: string[]; offline: boolean }> {
+export async function generateSentences(intentPath: string, patientId: string, sessionId: string): Promise<{ sentences: string[]; offline: boolean }> {
   try {
-    const res = await post({ action: 'generate', patient_id: PATIENT_ID, session_id: SESSION_ID, intent_path: intentPath });
+    const res = await post({ action: 'generate', patient_id: patientId, session_id: sessionId, intent_path: intentPath });
     const data = await res.json();
+    if (data.errorMessage || data.errorType) {
+      console.error('[aac/generate] Lambda error:', data.errorType, data.errorMessage, '\n', data.stackTrace?.join('\n'));
+      return { sentences: getOfflineFallback(intentPath), offline: true };
+    }
     const sentences = JSON.parse(data.body).sentences as string[];
     return { sentences, offline: false };
-  } catch {
+  } catch (err) {
+    console.error('[aac/generate] fetch/parse error:', err);
     return { sentences: getOfflineFallback(intentPath), offline: true };
   }
 }
@@ -36,20 +39,27 @@ export async function regenerateSentences(
   intentPath: string,
   nudge: string,
   previousOptions: string[],
+  patientId: string,
+  sessionId: string,
 ): Promise<{ sentences: string[]; offline: boolean }> {
   try {
     const res = await post({
       action: 'regenerate',
-      patient_id: PATIENT_ID,
-      session_id: SESSION_ID,
+      patient_id: patientId,
+      session_id: sessionId,
       intent_path: intentPath,
       nudge,
       previous_options: previousOptions,
     });
     const data = await res.json();
+    if (data.errorMessage || data.errorType) {
+      console.error('[aac/regenerate] Lambda error:', data.errorType, data.errorMessage, '\n', data.stackTrace?.join('\n'));
+      return { sentences: getOfflineFallback(intentPath), offline: true };
+    }
     const sentences = JSON.parse(data.body).sentences as string[];
     return { sentences, offline: false };
-  } catch {
+  } catch (err) {
+    console.error('[aac/regenerate] fetch/parse error:', err);
     return { sentences: getOfflineFallback(intentPath), offline: true };
   }
 }
@@ -58,12 +68,14 @@ export async function logSelection(
   intentPath: string,
   optionsShown: string[],
   selectedIndex: number,
+  patientId: string,
+  sessionId: string,
 ): Promise<void> {
   try {
     await post({
       action: 'log_selection',
-      patient_id: PATIENT_ID,
-      session_id: SESSION_ID,
+      patient_id: patientId,
+      session_id: sessionId,
       intent_path: intentPath,
       options_shown: optionsShown,
       selected_index: selectedIndex,
@@ -73,16 +85,43 @@ export async function logSelection(
   }
 }
 
-export async function appendExchange(text: string): Promise<void> {
+export async function appendExchange(
+  text: string,
+  patientId: string,
+  sessionId: string,
+  speaker: 'patient' | 'caregiver' = 'patient',
+): Promise<void> {
   try {
     await post({
       action: 'append_exchange',
-      patient_id: PATIENT_ID,
-      session_id: SESSION_ID,
-      speaker: 'robert',
+      patient_id: patientId,
+      session_id: sessionId,
+      speaker,
       text,
     });
   } catch {
     // fire-and-forget, non-critical
+  }
+}
+
+export async function synthesizeAsync(text: string, patientId: string): Promise<{ jobId: string } | null> {
+  try {
+    const res = await post({ action: 'synthesize_async', patient_id: patientId, text });
+    const data = await res.json();
+    const body = JSON.parse(data.body);
+    return { jobId: body.job_id };
+  } catch {
+    return null;
+  }
+}
+
+export async function checkAudio(jobId: string): Promise<{ status: string; audioUrl?: string }> {
+  try {
+    const res = await post({ action: 'check_audio', job_id: jobId });
+    const data = await res.json();
+    const body = JSON.parse(data.body);
+    return { status: body.status, audioUrl: body.audio_url };
+  } catch {
+    return { status: 'failed' };
   }
 }

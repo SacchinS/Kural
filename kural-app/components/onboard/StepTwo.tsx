@@ -70,7 +70,7 @@ export default function StepTwo({ onNext, onBack, saving = false, saveError = ''
       </motion.p>
 
       <div className="space-y-5">
-        <motion.div variants={fadeUp} className="grid grid-cols-2 gap-4">
+        <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs mb-1.5" style={{ color: '#8E8E93' }}>Patient name</label>
             <input
@@ -94,7 +94,7 @@ export default function StepTwo({ onNext, onBack, saving = false, saveError = ''
           </div>
         </motion.div>
 
-        <motion.div variants={fadeUp} className="grid grid-cols-2 gap-4">
+        <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs mb-1.5" style={{ color: '#8E8E93' }}>Communication style</label>
             <select

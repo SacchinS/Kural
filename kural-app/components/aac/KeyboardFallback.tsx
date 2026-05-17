@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Tile from './Tile';
+import DwellButton from './DwellButton';
 import { KEYBOARD_GROUPS } from '@/lib/aac/tiles';
 
 interface Props {
@@ -47,9 +48,9 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
       {activeGroup && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {activeGroup.split('').map((letter) => (
-            <button
+            <DwellButton
               key={letter}
-              onClick={() => handleLetter(letter)}
+              onSelect={() => handleLetter(letter)}
               style={{
                 background: '#3A3A3C',
                 border: '1px solid rgba(255,255,255,0.12)',
@@ -59,11 +60,13 @@ export default function KeyboardFallback({ disabled = false, onSpeak }: Props) {
                 color: '#FFFFFF',
                 fontSize: 20,
                 fontWeight: 500,
-                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               {letter}
-            </button>
+            </DwellButton>
           ))}
         </div>
       )}

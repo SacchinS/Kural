@@ -3,10 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { ConversationEntry } from '@/lib/aac/types';
+import DwellButton from './DwellButton';
 
 interface Props {
   entries: ConversationEntry[];
   onCaregiverSend: (text: string) => void;
+  onClearConversation: () => void;
+  patientName?: string;
+  containerStyle?: React.CSSProperties;
 }
 
 declare global {
@@ -20,7 +24,7 @@ declare global {
 
 const AUTO_SEND_DELAY = 2000; // ms of silence before auto-sending
 
-export default function ConversationPanel({ entries, onCaregiverSend }: Props) {
+export default function ConversationPanel({ entries, onCaregiverSend, onClearConversation, patientName, containerStyle }: Props) {
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
@@ -156,20 +160,37 @@ export default function ConversationPanel({ entries, onCaregiverSend }: Props) {
         display: 'flex',
         flexDirection: 'column',
         background: '#1C1C1E',
+        ...containerStyle,
       }}
     >
       <div
         style={{
           padding: '12px 16px',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
-          color: '#8E8E93',
-          fontSize: 12,
-          fontWeight: 500,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
-        Conversation
+        <span style={{ color: '#8E8E93', fontSize: 12, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          Conversation
+        </span>
+        {entries.length > 0 && (
+          <DwellButton
+            onSelect={onClearConversation}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,69,58,0.3)',
+              borderRadius: 6,
+              padding: '3px 8px',
+              color: '#FF453A',
+              fontSize: 11,
+              fontWeight: 500,
+            }}
+          >
+            Clear
+          </DwellButton>
+        )}
       </div>
 
       <div
@@ -192,7 +213,7 @@ export default function ConversationPanel({ entries, onCaregiverSend }: Props) {
             }}
           >
             <div style={{ color: entry.speaker === 'robert' ? '#00C9A7' : '#8E8E93', fontSize: 11, fontWeight: 500, marginBottom: 2 }}>
-              {entry.speaker === 'robert' ? 'Robert' : 'Caregiver'}
+              {entry.speaker === 'robert' ? (patientName || 'Patient') : 'Caregiver'}
             </div>
             <div style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 1.4 }}>{entry.text}</div>
           </div>
@@ -229,39 +250,35 @@ export default function ConversationPanel({ entries, onCaregiverSend }: Props) {
             }}
           />
           {speechSupported && (
-            <button
-              onClick={toggleListening}
-              title={listening ? 'Stop mic' : 'Start mic'}
+            <DwellButton
+              onSelect={toggleListening}
               style={{
                 background: listening ? 'rgba(255,69,58,0.15)' : 'rgba(255,255,255,0.06)',
                 border: `1px solid ${listening ? 'rgba(255,69,58,0.4)' : 'rgba(255,255,255,0.08)'}`,
                 borderRadius: 8,
                 padding: '0 10px',
                 color: listening ? '#FF453A' : '#8E8E93',
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                transition: 'background 0.2s, border-color 0.2s, color 0.2s',
+                minHeight: 36,
               }}
             >
               {listening ? <MicOff size={15} /> : <Mic size={15} />}
-            </button>
+            </DwellButton>
           )}
-          <button
-            onClick={handleSend}
+          <DwellButton
+            onSelect={handleSend}
             style={{
               background: '#00C9A7',
-              border: 'none',
               borderRadius: 8,
               padding: '8px 12px',
               color: '#000',
               fontSize: 13,
               fontWeight: 500,
-              cursor: 'pointer',
             }}
           >
             Send
-          </button>
+          </DwellButton>
         </div>
         {listening && (
           <p style={{ fontSize: 11, color: '#FF453A', margin: 0, paddingLeft: 2 }}>
