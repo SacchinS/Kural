@@ -4,12 +4,6 @@ AI-powered AAC (Augmentative and Alternative Communication) device for ALS patie
 
 ---
 
-# Kural
-
-AI-powered AAC (Augmentative and Alternative Communication) device for ALS patients — eye tracking + voice cloning + LLM context awareness to restore communication in their own voice.
-
----
-
 ## What Was Built
 
 ### AAC Interface (`/aac`)
